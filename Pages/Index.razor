@@ -1,0 +1,103 @@
+﻿@using System.IO
+@page "/";
+@layout NoMenuLayout
+@using Newtonsoft.Json
+<table class="table">
+    <tbody>
+        <div class="container-fluid">
+
+            <div class="row">
+                @foreach (var json in jsonStrings)
+                {
+                    @*déserialize le JSON et le converti en objet de classe "project"*@
+                    var project = JsonConvert.DeserializeObject<Project>(json);
+                    <div class="col-md-4" style="margin: 10px 0">
+
+                        @*Bouton si caché, onclick -> appel methode*@
+                        <button
+                            class="btn btn-custom"
+                            style="color:black; background-color: @project.Color; text-decoration:none; width:100%; height:64px; border: 1px solid black"
+                            @onclick="(() => ToggleDetails(jsonStrings.IndexOf(json)))">
+                            @project.Titre
+                        </button>
+
+                        @*div si affiché*@
+                        <div class="card" style="display:@(project.DetailsVisible ? "block" : "none")">
+                            <div class="card-body">
+                                @*détails du projet*@
+                                <p>Description: @project.Description</p>
+                                <p>Responsable: @project.Responsable</p>
+                                <p>Date: @project.Date</p>
+                                <p>Language: @project.Language</p>
+                                <p>Keywords: @project.Keywords</p>
+                                <p>Color: @project.Color</p>
+                                <p>Client: @project.Client</p>
+                                <p>State: @project.StateProj</p>
+                                <p>Type: @project.TypeProj</p>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </tbody>
+</table>
+
+@code {
+
+    public class Project
+    {
+        public string Titre { get; set; }
+        public string Description { get; set; }
+        public string Auteur { get; set; }
+        public string Responsable { get; set; }
+        public string Date { get; set; }
+        public string Language { get; set; }
+        public string Keywords { get; set; }
+        public string Color { get; set; }
+        public string Client { get; set; }
+        public string StateProj { get; set; }
+        public string TypeProj { get; set; }
+        public bool DetailsVisible { get; set; }
+    }
+
+    // Méthode qui montre les détails
+    private void ToggleDetails(int index)
+    {
+        //Déserialize le Json en objet de type classe(encore)
+        var project = JsonConvert.DeserializeObject<Project>(jsonStrings[index]);
+        //toggle DetailsVisible
+        project.DetailsVisible = !project.DetailsVisible;
+        //Reserialize l'object Project en Json -> ne marche pas sans
+        jsonStrings[index] = JsonConvert.SerializeObject(project);
+
+        //StateHasChanged();
+    }
+
+    //Liste de string Json
+    List<string> jsonStrings = new List<string>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Create an instance of the DatabaseSetup class
+            var dbSetup = new DatabaseSetup();
+            // Call the SetupDatabase method
+            dbSetup.SetupDatabase();
+        }
+        catch (Exception ex)
+        {
+            // Handle the exception here, you can log it or show a message to the user
+            Console.WriteLine("An error occurred while setting up the database: " + ex.Message);
+        }
+
+        //va chercher tout les fichier ".POrgConf.jon" dans "R:/test/test" et ces sous dossiers avec le nom désigné
+        var jsonFiles = Directory.GetFiles("R:/test/test", ".POrgConf.json", SearchOption.AllDirectories);
+        //pour chaque fichier trouvé
+        foreach (var jsonFile in jsonFiles) {
+            //ajoute le contenu des fichier dans la liste
+            jsonStrings.Add(await File.ReadAllTextAsync(jsonFile));
+        }
+    }
+}
