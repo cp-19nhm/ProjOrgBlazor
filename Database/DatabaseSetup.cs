@@ -6,16 +6,17 @@ using static BlazorTruc.Pages.Index;
 
 public class DatabaseSetup
 {
-    private string connectionString = "Server=localhost;Database=MyDatabase;User Id=myUsername;Password=myPassword;";
+    private string connectionString = "Data Source=localhost;Initial Catalog=ProjetDB;Integrated Security=True;Connect Timeout=30;Encrypt=False;TrustServerCertificate=False;ApplicationIntent=ReadWrite;MultiSubnetFailover=False";
 
     public void SetupDatabase()
     {
-        // Check the flag
         using (SqlConnection connection = new SqlConnection(connectionString))
         {
             connection.Open();
-            using (SqlCommand command = new SqlCommand("IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = N'MyDatabase')", connection))
+            //creation database
+            using (SqlCommand command = new SqlCommand("IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = N'ProjetDB')", connection))
             {
+                //Creation des tables
                 command.ExecuteNonQuery();
                 command.CommandText = @"CREATE TABLE SetupFlag (
                                             Id INT PRIMARY KEY IDENTITY(1,1),
@@ -38,14 +39,12 @@ public class DatabaseSetup
                                             State NVARCHAR(255),
                                             Type NVARCHAR(255))";
                 command.ExecuteNonQuery();
+                //insert les données json dans les tables
                 var jsonFiles = Directory.GetFiles("R:/test/test", ".POrgConf.json", SearchOption.AllDirectories);
                 foreach (var jsonFile in jsonFiles)
                 {
-                    // Read the contents of the JSON file
                     var json = File.ReadAllText(jsonFile);
-                    // Deserialize the JSON into a Project object
                     var project = JsonConvert.DeserializeObject<Project>(json);
-                    // Insert the data into the Projects table
                     using (SqlConnection connection1 = new SqlConnection(connectionString))
                     {
                         connection1.Open();
