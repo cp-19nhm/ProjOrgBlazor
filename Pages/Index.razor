@@ -2,9 +2,67 @@
 @page "/";
 @layout NoMenuLayout
 @using Newtonsoft.Json
+@inject IJSRuntime JSRuntime
+
 <table class="table">
     <tbody>
         <div class="container-fluid">
+            @if (uniqueLanguages.Count != 0)
+            {
+                <select @onchange="LanguageSelected" value="@selectedLanguage">
+                    <option value=" "> </option>
+                    @foreach (var language in uniqueLanguages)
+                    {
+                        <option value="@language">@language</option>
+                    }
+                </select>
+            }
+
+            @if (uniqueKeywords.Count != 0)
+            {
+                <select @onchange="KeywordSelected" value="@selectedKeyword">
+                    <option value=" "> </option>
+                    @foreach (var Keyword in uniqueKeywords)
+                    {
+                        <option value="@Keyword">@Keyword</option>
+                    }
+                </select>
+            }
+
+            @if (uniqueColor.Count != 0)
+            {
+                <select @onchange="ColorSelected" value="@selectedColor">
+                    <option value=" "> </option>
+                    @foreach (var Color in uniqueColor)
+                    {
+                        <option value="@Color">@Color</option>
+                    }
+                </select>
+            }
+
+            @if (uniqueState.Count != 0)
+            {
+                <select @onchange="StateSelected" value="@selectedState">
+                    <option value=" "> </option>
+                    @foreach (var State in uniqueState)
+                    {
+                        <option value="@State">@State</option>
+                    }
+                </select>
+            }
+
+            @if (uniqueType.Count != 0)
+            {
+                <select @onchange="TypeSelected" value="@selectedType">
+                    <option value=" "> </option>
+                    @foreach (var Type in uniqueType)
+                    {
+                        <option value="@Type">@Type</option>
+                    }
+                </select>
+            }
+
+            <button class="btn btn-reset" @onclick="ResetAll">Reset all</button>
 
             <div class="row">
                 @foreach (var json in jsonStrings)
@@ -14,8 +72,7 @@
                     <div class="col-md-4" style="margin: 10px 0">
 
                         @*Bouton si caché, onclick -> appel methode*@
-                        <button
-                            class="btn btn-custom"
+                        <button class="btn btn-custom"
                             style="color:black; background-color: @project.Color; text-decoration:none; width:100%; height:64px; border: 1px solid black"
                             @onclick="(() => ToggleDetails(jsonStrings.IndexOf(json)))">
                             @project.Titre
@@ -45,6 +102,16 @@
 
 @code {
 
+    private List<string> uniqueLanguages { get; set; }
+    private List<string> uniqueKeywords { get; set; }
+    private List<string> uniqueColor { get; set; }
+    private List<string> uniqueState { get; set; }
+    private List<string> uniqueType { get; set; }
+
+
+    private List<string> jsonStringsOriginal { get; set; }
+    public List<Project> Projects { get; set; } = new List<Project>();
+
     public class Project
     {
         public string Titre { get; set; }
@@ -60,8 +127,207 @@
         public string TypeProj { get; set; }
         public bool DetailsVisible { get; set; }
     }
+    public class Filter
+    {
+        public string Language { get; set; }
+        public string Keyword { get; set; }
+        public string Color { get; set; }
+        public string State { get; set; }
+        public string Type { get; set; }
+    }
 
-    // Méthode qui montre les détails
+    private Filter CurrentConditions { get; set; } = new Filter();
+
+    private string selectedLanguage { get; set; } = " ";
+    private string selectedKeyword { get; set; } = " ";
+    private string selectedColor { get; set; } = " ";
+    private string selectedState { get; set; } = " ";
+    private string selectedType { get; set; } = " ";
+
+
+    private void PopulateLanguages()
+    {
+        uniqueLanguages = jsonStrings
+        .Select(json => JsonConvert.DeserializeObject<Project>(json).Language)
+        .Where(language => !string.IsNullOrEmpty(language))
+        .SelectMany(language => language.Split(';'))
+        .Select(language => language.Trim())
+        .Select(language => language.ToLower())
+        .Distinct()
+        .ToList();
+    }
+    private void PopulateKeywords()
+    {
+        uniqueKeywords = jsonStrings
+        .Select(json => JsonConvert.DeserializeObject<Project>(json).Keywords)
+        .Where(Keywords => !string.IsNullOrEmpty(Keywords))
+        .SelectMany(Keywords => Keywords.Split(';'))
+        .Select(Keywords => Keywords.Trim())
+        .Select(Keywords => Keywords.ToLower())
+        .Distinct()
+        .ToList();
+    }
+    private void PopulateColors()
+    {
+        uniqueColor = jsonStrings
+        .Select(json => JsonConvert.DeserializeObject<Project>(json).Color)
+        .Where(Color => !string.IsNullOrEmpty(Color))
+        .SelectMany(Color => Color.Split(';'))
+        .Select(Color => Color.Trim())
+        .Select(Color => Color.ToLower())
+        .Distinct()
+        .ToList();
+    }
+    private void PopulateStates()
+    {
+        uniqueState = jsonStrings
+        .Select(json => JsonConvert.DeserializeObject<Project>(json).StateProj)
+        .Where(StateProj => !string.IsNullOrEmpty(StateProj))
+        .SelectMany(StateProj => StateProj.Split(';'))
+        .Select(StateProj => StateProj.Trim())
+        .Select(StateProj => StateProj.ToLower())
+        .Distinct()
+        .ToList();
+    }
+    private void PopulateTypes()
+    {
+        uniqueType = jsonStrings
+        .Select(json => JsonConvert.DeserializeObject<Project>(json).TypeProj)
+        .Where(TypeProj => !string.IsNullOrEmpty(TypeProj))
+        .SelectMany(TypeProj => TypeProj.Split(';'))
+        .Select(TypeProj => TypeProj.Trim())
+        .Select(TypeProj => TypeProj.ToLower())
+        .Distinct()
+        .ToList();
+    }
+
+
+    private void LanguageSelected(ChangeEventArgs e)
+    {
+        selectedLanguage = e.Value.ToString();
+        CurrentConditions.Language = selectedLanguage;
+        SuperSort();
+    }
+    private void KeywordSelected(ChangeEventArgs e)
+    {
+        selectedKeyword = e.Value.ToString();
+        CurrentConditions.Keyword = selectedKeyword;
+        SuperSort();
+    }
+    private void ColorSelected(ChangeEventArgs e)
+    {
+        selectedColor = e.Value.ToString();
+        CurrentConditions.Color = selectedColor;
+        SuperSort();
+    }
+    private void TypeSelected(ChangeEventArgs e)
+    {
+        selectedType = e.Value.ToString();
+        CurrentConditions.Type = selectedType;
+        SuperSort();
+    }
+    private void StateSelected(ChangeEventArgs e)
+    {
+        selectedState = e.Value.ToString();
+        CurrentConditions.State = selectedState;
+        SuperSort();
+    }
+
+    private void SuperSort()
+    {
+
+        jsonStrings = jsonStringsOriginal;
+
+        if (CurrentConditions.Language != " ")
+        {
+            jsonStrings = jsonStrings.Where(json =>
+            {
+                var project = JsonConvert.DeserializeObject<Project>(json);
+                if (project.Language == null) return false;
+                var languages = project.Language.Split(";");
+                return languages.Any(language => language.Trim().ToLower().Equals(CurrentConditions.Language.ToLower()));
+            }).ToList();
+        }
+
+        if (CurrentConditions.Keyword != " ")
+        {
+            jsonStrings = jsonStrings.Where(json =>
+            {
+                var project = JsonConvert.DeserializeObject<Project>(json);
+                if (project.Keywords == null) return false;
+                var keywords = project.Keywords.Split(";");
+                return keywords.Any(keyword => keyword.Trim().ToLower().Equals(CurrentConditions.Keyword.ToLower()));
+            }).ToList();
+        }
+
+        if (CurrentConditions.Color != " ")
+        {
+            jsonStrings = jsonStrings.Where(json =>
+            {
+                var project = JsonConvert.DeserializeObject<Project>(json);
+                if (project.Color == null) return false;
+                var colors = project.Color.Split(";");
+                return colors.Any(color => color.Trim().ToLower().Equals(CurrentConditions.Color.ToLower()));
+            }).ToList();
+        }
+
+        if (CurrentConditions.State != " ")
+        {
+            jsonStrings = jsonStrings.Where(json =>
+            {
+                var project = JsonConvert.DeserializeObject<Project>(json);
+                if (project.StateProj == null) return false;
+                var states = project.StateProj.Split(";");
+                return states.Any(state => state.Trim().ToLower().Equals(CurrentConditions.State.ToLower()));
+            }).ToList();
+        }
+
+        if (CurrentConditions.Type != " ")
+        {
+            jsonStrings = jsonStrings.Where(json =>
+            {
+                var project = JsonConvert.DeserializeObject<Project>(json);
+                if (project.TypeProj == null) return false;
+                var types = project.TypeProj.Split(";");
+                return types.Any(type => type.Trim().ToLower().Equals(CurrentConditions.Type.ToLower()));
+            }).ToList();
+        }
+
+        UpdateSelectOptions();
+        StateHasChanged();
+    }
+
+    private void ResetAll()
+    {
+        jsonStrings = jsonStringsOriginal;
+        UpdateSelectOptions();
+        ResetSortVisuals();
+        StateHasChanged();
+    }
+
+    private void ResetSortVisuals()
+    {
+        selectedLanguage = " ";
+        CurrentConditions.Language = " ";
+        selectedKeyword = " ";
+        CurrentConditions.Keyword = " ";
+        selectedColor = " ";
+        CurrentConditions.Color = " ";
+        selectedState = " ";
+        CurrentConditions.State = " ";
+        selectedType = " ";
+        CurrentConditions.Type = " ";
+    }
+
+    private void UpdateSelectOptions()
+    {
+        PopulateLanguages();
+        PopulateKeywords();
+        PopulateColors();
+        PopulateStates();
+        PopulateTypes();
+    }
+
     private void ToggleDetails(int index)
     {
         //Déserialize le Json en objet de type classe(encore)
@@ -70,12 +336,11 @@
         project.DetailsVisible = !project.DetailsVisible;
         //Reserialize l'object Project en Json -> ne marche pas sans
         jsonStrings[index] = JsonConvert.SerializeObject(project);
-
-        //StateHasChanged();
     }
 
     //Liste de string Json
     List<string> jsonStrings = new List<string>();
+
 
     protected override async Task OnInitializedAsync()
     {
@@ -92,12 +357,19 @@
             Console.WriteLine("An error occurred while setting up the database: " + ex.Message);
         }
 
-        //va chercher tout les fichier ".POrgConf.jon" dans "R:/test/test" et ces sous dossiers avec le nom désigné
-        var jsonFiles = Directory.GetFiles("R:/test/test", ".POrgConf.json", SearchOption.AllDirectories);
-        //pour chaque fichier trouvé
-        foreach (var jsonFile in jsonFiles) {
-            //ajoute le contenu des fichier dans la liste
-            jsonStrings.Add(await File.ReadAllTextAsync(jsonFile));
-        }
+        jsonStringsOriginal = jsonStrings;
+
+        //va chercher tout les fichier ".POrgConf.jon" dans "R:/test/test" et ces sous dossiers avec le nom définit
+        var files = Directory.GetFiles("R:/test/test", "*.POrgConf.json", SearchOption.AllDirectories);
+
+        //ajoute tout les fichiers json dans la liste de string
+        jsonStrings.AddRange(files.Select(File.ReadAllText));
+
+        UpdateSelectOptions();
+        CurrentConditions.Language = selectedLanguage;
+        CurrentConditions.Keyword = selectedKeyword;
+        CurrentConditions.Color = selectedColor;
+        CurrentConditions.State = selectedState;
+        CurrentConditions.Type = selectedType;
     }
 }
