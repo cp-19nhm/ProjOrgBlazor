@@ -64,34 +64,39 @@
 
             <button class="btn btn-reset" @onclick="ResetAll">Reset all</button>
 
+
+            <button class="btn right-button" @onclick="UpdateDB">Refresh</button>
+
             <div class="row">
-                @foreach (var json in jsonStrings)
+                @foreach (var project in Projects)
                 {
                     @*déserialize le JSON et le converti en objet de classe "project"*@
-                    var project = JsonConvert.DeserializeObject<Project>(json);
                     <div class="col-md-4" style="margin: 10px 0">
 
                         @*Bouton si caché, onclick -> appel methode*@
                         <button class="btn btn-custom"
                             style="color:black; background-color: @project.Color; text-decoration:none; width:100%; height:64px; border: 1px solid black"
-                            @onclick="(() => ToggleDetails(jsonStrings.IndexOf(json)))">
+                            @onclick="(() => ToggleDetails(project.Id - 1))">
                             @project.Titre
                         </button>
 
                         @*div si affiché*@
-                        <div class="card" style="display:@(project.DetailsVisible ? "block" : "none")">
-                            <div class="card-body">
-                                @*détails du projet*@
-                                <p>Description: @project.Description</p>
-                                <p>Responsable: @project.Responsable</p>
-                                <p>Date: @project.Date</p>
-                                <p>Language: @project.Language</p>
-                                <p>Keywords: @project.Keywords</p>
-                                <p>Color: @project.Color</p>
-                                <p>Client: @project.Client</p>
-                                <p>State: @project.StateProj</p>
-                                <p>Type: @project.TypeProj</p>
-                            </div>
+                        <div class="card">
+                            @if (project.DetailsVisible)
+                            {
+                                <div class="card-body">
+                                    @*détails du projet*@
+                                    <p>Description: @project.Description</p>
+                                    <p>Responsable: @project.Responsable</p>
+                                    <p>Date: @project.Date</p>
+                                    <p>Language: @project.Language</p>
+                                    <p>Keywords: @project.Keywords</p>
+                                    <p>Color: @project.Color</p>
+                                    <p>Client: @project.Client</p>
+                                    <p>State: @project.StateProj</p>
+                                    <p>Type: @project.TypeProj</p>
+                                </div>
+                            }
                         </div>
                     </div>
                 }
@@ -99,8 +104,15 @@
         </div>
     </tbody>
 </table>
+<style>
+  .right-button {
+    float: right;
+  }
+</style>
 
 @code {
+    private string searchedDirectory = "R:/test/test";
+    private string fileFormat = "*.POrgConf.json";
 
     private List<string> uniqueLanguages { get; set; }
     private List<string> uniqueKeywords { get; set; }
@@ -108,12 +120,13 @@
     private List<string> uniqueState { get; set; }
     private List<string> uniqueType { get; set; }
 
-
-    private List<string> jsonStringsOriginal { get; set; }
+    //public List<string> jsonStrings = new List<string>();
+    public List<Project> ProjectsOriginal { get; set; }
     public List<Project> Projects { get; set; } = new List<Project>();
 
     public class Project
     {
+        public int Id { get; set; }
         public string Titre { get; set; }
         public string Description { get; set; }
         public string Auteur { get; set; }
@@ -127,6 +140,7 @@
         public string TypeProj { get; set; }
         public bool DetailsVisible { get; set; }
     }
+
     public class Filter
     {
         public string Language { get; set; }
@@ -144,11 +158,41 @@
     private string selectedState { get; set; } = " ";
     private string selectedType { get; set; } = " ";
 
+    private void UpdateDB()
+    {
+        var dbManager = new DbManager();
+        //va chercher tout les fichier ".POrgConf.jon" dans "R:/test/test" et ces sous dossiers avec le nom définit
+        var files = Directory.GetFiles(searchedDirectory, fileFormat, SearchOption.AllDirectories);
+        dbManager.InsertJsonFiles(files);
+    }
+
+
+    protected override async Task OnInitializedAsync()
+    {
+
+        //ajoute tout les fichiers json dans la liste de string
+        Projects = LoadFilesFromDatabase();
+        ProjectsOriginal = Projects;
+
+        UpdateSelectOptions();
+        CurrentConditions.Language = selectedLanguage;
+        CurrentConditions.Keyword = selectedKeyword;
+        CurrentConditions.Color = selectedColor;
+        CurrentConditions.State = selectedState;
+        CurrentConditions.Type = selectedType;
+    }
+
+    private List<Project> LoadFilesFromDatabase()
+    {
+        var dbManager = new DbManager();
+        var jsonFiles = dbManager.GetFilesFromDatabase();
+        return jsonFiles;
+    }
 
     private void PopulateLanguages()
     {
-        uniqueLanguages = jsonStrings
-        .Select(json => JsonConvert.DeserializeObject<Project>(json).Language)
+        uniqueLanguages = Projects
+        .Select(json => json.Language)
         .Where(language => !string.IsNullOrEmpty(language))
         .SelectMany(language => language.Split(';'))
         .Select(language => language.Trim())
@@ -158,8 +202,8 @@
     }
     private void PopulateKeywords()
     {
-        uniqueKeywords = jsonStrings
-        .Select(json => JsonConvert.DeserializeObject<Project>(json).Keywords)
+        uniqueKeywords = Projects
+        .Select(json => json.Keywords)
         .Where(Keywords => !string.IsNullOrEmpty(Keywords))
         .SelectMany(Keywords => Keywords.Split(';'))
         .Select(Keywords => Keywords.Trim())
@@ -169,8 +213,8 @@
     }
     private void PopulateColors()
     {
-        uniqueColor = jsonStrings
-        .Select(json => JsonConvert.DeserializeObject<Project>(json).Color)
+        uniqueColor = Projects
+        .Select(json => json.Color)
         .Where(Color => !string.IsNullOrEmpty(Color))
         .SelectMany(Color => Color.Split(';'))
         .Select(Color => Color.Trim())
@@ -180,8 +224,8 @@
     }
     private void PopulateStates()
     {
-        uniqueState = jsonStrings
-        .Select(json => JsonConvert.DeserializeObject<Project>(json).StateProj)
+        uniqueState = Projects
+        .Select(json => json.StateProj)
         .Where(StateProj => !string.IsNullOrEmpty(StateProj))
         .SelectMany(StateProj => StateProj.Split(';'))
         .Select(StateProj => StateProj.Trim())
@@ -191,8 +235,8 @@
     }
     private void PopulateTypes()
     {
-        uniqueType = jsonStrings
-        .Select(json => JsonConvert.DeserializeObject<Project>(json).TypeProj)
+        uniqueType = Projects
+        .Select(json => json.TypeProj)
         .Where(TypeProj => !string.IsNullOrEmpty(TypeProj))
         .SelectMany(TypeProj => TypeProj.Split(';'))
         .Select(TypeProj => TypeProj.Trim())
@@ -201,6 +245,19 @@
         .ToList();
     }
 
+    private List<Project> ConvertStringListIntoProject(List<String> InputList)
+    {
+
+        List<Project> OutputList = new List<Project>();
+
+        foreach (var item in InputList)
+        {
+            OutputList.Add(JsonConvert.DeserializeObject<Project>(item));
+        }
+
+        return OutputList;
+
+    }
 
     private void LanguageSelected(ChangeEventArgs e)
     {
@@ -236,13 +293,13 @@
     private void SuperSort()
     {
 
-        jsonStrings = jsonStringsOriginal;
+        Projects = ProjectsOriginal;
 
         if (CurrentConditions.Language != " ")
         {
-            jsonStrings = jsonStrings.Where(json =>
+            Projects = Projects.Where(json =>
             {
-                var project = JsonConvert.DeserializeObject<Project>(json);
+                var project = json;
                 if (project.Language == null) return false;
                 var languages = project.Language.Split(";");
                 return languages.Any(language => language.Trim().ToLower().Equals(CurrentConditions.Language.ToLower()));
@@ -251,9 +308,9 @@
 
         if (CurrentConditions.Keyword != " ")
         {
-            jsonStrings = jsonStrings.Where(json =>
+            Projects = Projects.Where(json =>
             {
-                var project = JsonConvert.DeserializeObject<Project>(json);
+                var project = json;
                 if (project.Keywords == null) return false;
                 var keywords = project.Keywords.Split(";");
                 return keywords.Any(keyword => keyword.Trim().ToLower().Equals(CurrentConditions.Keyword.ToLower()));
@@ -262,9 +319,9 @@
 
         if (CurrentConditions.Color != " ")
         {
-            jsonStrings = jsonStrings.Where(json =>
+            Projects = Projects.Where(json =>
             {
-                var project = JsonConvert.DeserializeObject<Project>(json);
+                var project = json;
                 if (project.Color == null) return false;
                 var colors = project.Color.Split(";");
                 return colors.Any(color => color.Trim().ToLower().Equals(CurrentConditions.Color.ToLower()));
@@ -273,9 +330,9 @@
 
         if (CurrentConditions.State != " ")
         {
-            jsonStrings = jsonStrings.Where(json =>
+            Projects = Projects.Where(json =>
             {
-                var project = JsonConvert.DeserializeObject<Project>(json);
+                var project = json;
                 if (project.StateProj == null) return false;
                 var states = project.StateProj.Split(";");
                 return states.Any(state => state.Trim().ToLower().Equals(CurrentConditions.State.ToLower()));
@@ -284,9 +341,9 @@
 
         if (CurrentConditions.Type != " ")
         {
-            jsonStrings = jsonStrings.Where(json =>
+            Projects = Projects.Where(json =>
             {
-                var project = JsonConvert.DeserializeObject<Project>(json);
+                var project = json;
                 if (project.TypeProj == null) return false;
                 var types = project.TypeProj.Split(";");
                 return types.Any(type => type.Trim().ToLower().Equals(CurrentConditions.Type.ToLower()));
@@ -299,12 +356,11 @@
 
     private void ResetAll()
     {
-        jsonStrings = jsonStringsOriginal;
+        Projects = ProjectsOriginal;
         UpdateSelectOptions();
         ResetSortVisuals();
         StateHasChanged();
     }
-
     private void ResetSortVisuals()
     {
         selectedLanguage = " ";
@@ -331,45 +387,11 @@
     private void ToggleDetails(int index)
     {
         //Déserialize le Json en objet de type classe(encore)
-        var project = JsonConvert.DeserializeObject<Project>(jsonStrings[index]);
+        var project = Projects[index];
         //toggle DetailsVisible
         project.DetailsVisible = !project.DetailsVisible;
         //Reserialize l'object Project en Json -> ne marche pas sans
-        jsonStrings[index] = JsonConvert.SerializeObject(project);
-    }
-
-    //Liste de string Json
-    List<string> jsonStrings = new List<string>();
-
-
-    protected override async Task OnInitializedAsync()
-    {
-        try
-        {
-            // Create an instance of the DatabaseSetup class
-            var dbSetup = new DatabaseSetup();
-            // Call the SetupDatabase method
-            dbSetup.SetupDatabase();
-        }
-        catch (Exception ex)
-        {
-            // Handle the exception here, you can log it or show a message to the user
-            Console.WriteLine("An error occurred while setting up the database: " + ex.Message);
-        }
-
-        jsonStringsOriginal = jsonStrings;
-
-        //va chercher tout les fichier ".POrgConf.jon" dans "R:/test/test" et ces sous dossiers avec le nom définit
-        var files = Directory.GetFiles("R:/test/test", "*.POrgConf.json", SearchOption.AllDirectories);
-
-        //ajoute tout les fichiers json dans la liste de string
-        jsonStrings.AddRange(files.Select(File.ReadAllText));
-
-        UpdateSelectOptions();
-        CurrentConditions.Language = selectedLanguage;
-        CurrentConditions.Keyword = selectedKeyword;
-        CurrentConditions.Color = selectedColor;
-        CurrentConditions.State = selectedState;
-        CurrentConditions.Type = selectedType;
+        Projects[index] = project;
+        StateHasChanged();
     }
 }
