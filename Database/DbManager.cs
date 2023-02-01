@@ -2,18 +2,26 @@
 using MySql.Data.MySqlClient;
 using Newtonsoft.Json;
 using static BlazorTruc.Pages.Index;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 public class DbManager
 {
     private readonly string connectionString = "Server=127.0.0.1;port=3306;Database=json_files;Uid=root;Pwd=1234";
 
-    public void InsertJsonFiles(string[] files)
+    public async void InsertJsonFiles(string[] files)
     {
-        //var files = Directory.GetFiles("R:/test/test", "*.POrgConf.json", SearchOption.AllDirectories);
 
         using (var connection = new MySqlConnection(connectionString))
         {
             connection.Open();
+
+            var delete_query = "DELETE FROM json_files.files";
+            var reset_query = "ALTER TABLE json_files.files AUTO_INCREMENT = 1";
+            using (var delete_command = new MySqlCommand(delete_query, connection))
+            delete_command.ExecuteNonQuery();
+            using (var reset_command = new MySqlCommand(reset_query, connection))
+            reset_command.ExecuteNonQuery();
 
             foreach (var file in files)
             {
@@ -43,6 +51,7 @@ public class DbManager
                 }
             }
         }
+
     }
 
     private bool ProjectExists(string titre)
@@ -68,23 +77,18 @@ public class DbManager
 
     public List<Project> GetFilesFromDatabase()
     {
-        // Create a list to store the Project objects
         List<Project> jsonFiles = new List<Project>();
 
-        // Create a new MySqlConnection and connect to the database
         using (MySqlConnection connection = new MySqlConnection(connectionString))
         {
             connection.Open();
 
-            // Create a new MySqlCommand to retrieve the files from the database
             using (MySqlCommand command = new MySqlCommand("SELECT * FROM json_files.files", connection))
             {
-                // Execute the command and retrieve the data
                 using (MySqlDataReader reader = command.ExecuteReader())
                 {
                     while (reader.Read())
                     {
-                        // Create a new Project object and set its properties
                         Project jsonFile = new Project();
                         jsonFile.Id = reader.GetInt32("id");
                         jsonFile.Titre = reader["Titre"].ToString();
@@ -107,22 +111,4 @@ public class DbManager
 
         return jsonFiles;
     }
-
-    //public void RemoveDuplicateProjects(Project project)
-    //{
-    //    using (var connection = new SqlConnection(connectionString))
-    //    {
-    //        connection.Open();
-    //        using (var command = new SqlCommand("DELETE FROM json_files.files WHERE Titre = @Titre AND id != @id", connection))
-    //        {
-    //            command.Parameters.AddWithValue("@Titre", project.Titre);
-    //            command.Parameters.AddWithValue("@id", project.Id);
-    //            int rowsAffected = command.ExecuteNonQuery();
-    //            if (rowsAffected > 0)
-    //            {
-    //                Console.WriteLine($"Deleted {rowsAffected} duplicate project(s) with title {project.Titre}");
-    //            }
-    //        }
-    //    }
-    //}
 }
